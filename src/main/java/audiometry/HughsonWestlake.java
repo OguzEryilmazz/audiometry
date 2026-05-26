@@ -101,28 +101,33 @@ public final class HughsonWestlake {
      * @return      Güncellenmiş yeni test durumu
      */
     public static AudioTestState onPatientResponse(AudioTestState state) {
-        int newHits = state.consecutiveHits + 1;
+        // Mevcut dB seviyesine kaç kez yanıt verildiğini responseLog'dan say
+        List<Integer> newLog = appendToList(state.responseLog, state.intensityDb);
 
-        if (newHits >= THRESHOLD_HIT_COUNT) {
-            // Eşik bulundu – mevcut dB'i response log'a ekle
-            List<Integer> newLog = appendToList(state.responseLog, state.intensityDb);
+
+        // FİX -- Eşik bulmaya fix yapıldı
+        long hitsAtCurrentLevel = newLog.stream()
+            .filter(db -> db == state.intensityDb)
+            .count();
+
+        if (hitsAtCurrentLevel >= THRESHOLD_HIT_COUNT) {
+            // Aynı dB seviyesine 2 kez yanıt verildi → eşik bulundu
             return new AudioTestState(
                 state.intensityDb,
                 state.frequencyHz,
                 newLog,
-                newHits,
+                (int) hitsAtCurrentLevel,
                 AudioTestState.Phase.THRESHOLD_FOUND
             );
         }
 
         // Henüz eşik doğrulanmadı → sesi 10dB azalt (descending)
         int newIntensity = state.intensityDb - DESCENDING_STEP_DB;
-        List<Integer> newLog = appendToList(state.responseLog, state.intensityDb);
         return new AudioTestState(
             newIntensity,
             state.frequencyHz,
             newLog,
-            newHits,
+            (int) hitsAtCurrentLevel,
             AudioTestState.Phase.DESCENDING
         );
     }

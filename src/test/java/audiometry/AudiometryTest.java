@@ -58,17 +58,22 @@ class AudiometryTest {
         }
 
         @Test
-        @DisplayName("İkinci yanıt → eşik bulundu (THRESHOLD_FOUND)")
-        void onPatientResponse_secondHit_shouldFindThreshold() {
-            // İlk yanıt
-            var state1 = HughsonWestlake.onPatientResponse(
-                HughsonWestlake.AudioTestState.initial(1000)
-            );
-            // İkinci yanıt
-            var state2 = HughsonWestlake.onPatientResponse(state1);
+        @DisplayName("Aynı dB seviyesine ikinci yanıt → eşik bulundu (THRESHOLD_FOUND)")
+        void onPatientResponse_secondHitAtSameLevel_shouldFindThreshold() {
+            // Gerçek Hughson-Westlake akışı:
+            // 30dB → duydu (1. hit, 20dB'ye in)
+            // 20dB → duymadı (25dB'ye çık)
+            // 25dB → duymadı (30dB'ye çık)
+            // 30dB → duydu (2. hit aynı seviyede → EŞİK = 30dB)
+            var s0 = HughsonWestlake.AudioTestState.initial(1000);   // 30dB SEARCHING
+            var s1 = HughsonWestlake.onPatientResponse(s0);          // duydu → 20dB
+            var s2 = HughsonWestlake.onNoResponse(s1);               // duymadı → 25dB
+            var s3 = HughsonWestlake.onNoResponse(s2);               // duymadı → 30dB
+            var s4 = HughsonWestlake.onPatientResponse(s3);          // duydu → EŞİK
 
-            assertEquals(HughsonWestlake.AudioTestState.Phase.THRESHOLD_FOUND, state2.phase);
-            assertTrue(HughsonWestlake.isTestComplete(state2));
+            assertEquals(HughsonWestlake.AudioTestState.Phase.THRESHOLD_FOUND, s4.phase);
+            assertEquals(30, s4.intensityDb);
+            assertTrue(HughsonWestlake.isTestComplete(s4));
         }
 
         @Test
@@ -393,15 +398,17 @@ class AudiometryTest {
          * Test bittikten sonra algoritma durmalıdır.
          */
         @Test
-        @DisplayName("P2: THRESHOLD_FOUND terminal state'dir — sonraki işlemler güvenlidir")
+        @DisplayName("P2: THRESHOLD_FOUND terminal state'dir — gerçek HW akışıyla doğrulanır")
         void property_thresholdFoundIsTerminal() {
-            // Eşiği bul
-            var s1 = HughsonWestlake.onPatientResponse(
-                         HughsonWestlake.AudioTestState.initial(1000));
-            var s2 = HughsonWestlake.onPatientResponse(s1);
+            // Gerçek akış: aynı dB'e iki kez çıkmak gerekir
+            var s0 = HughsonWestlake.AudioTestState.initial(1000);
+            var s1 = HughsonWestlake.onPatientResponse(s0);   // duydu → 20dB
+            var s2 = HughsonWestlake.onNoResponse(s1);        // duymadı → 25dB
+            var s3 = HughsonWestlake.onNoResponse(s2);        // duymadı → 30dB
+            var s4 = HughsonWestlake.onPatientResponse(s3);   // duydu → EŞİK
 
-            assertEquals(HughsonWestlake.AudioTestState.Phase.THRESHOLD_FOUND, s2.phase);
-            assertTrue(HughsonWestlake.isTestComplete(s2));
+            assertEquals(HughsonWestlake.AudioTestState.Phase.THRESHOLD_FOUND, s4.phase);
+            assertTrue(HughsonWestlake.isTestComplete(s4));
         }
 
         /**
