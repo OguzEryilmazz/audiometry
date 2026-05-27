@@ -24,9 +24,16 @@ public class VirtualAudiometerApp extends JFrame {
     private final int TIMEOUT_MS = 3000;
     
     // Kullanıcı Arayüzü (UI) Bileşenleri
+    private JComboBox<String> portSelector;
+    private JButton connectBtn;
+    private JRadioButton rightEarBtn;
+    private JRadioButton leftEarBtn;
+
     private JButton startBtn;
     private JButton responseBtn;
     private JButton saveBtn;
+
+    private SerialPortManager serialManager = new SerialPortManager();
     
     private JLabel statusLabel;
     private JLabel currentFreqLabel;
@@ -47,6 +54,23 @@ public class VirtualAudiometerApp extends JFrame {
     }
 
     private void initUI() {
+        // Kurulum Paneli (COM & Ear Selection)
+        JPanel setupPanel = new JPanel(new FlowLayout());
+        portSelector = new JComboBox<>(SerialPortManager.getAvailablePorts());
+        connectBtn = new JButton("Connect");
+        
+        rightEarBtn = new JRadioButton("Right Ear (Red O)", true);
+        leftEarBtn = new JRadioButton("Left Ear (Blue X)", false);
+        ButtonGroup earGroup = new ButtonGroup();
+        earGroup.add(rightEarBtn);
+        earGroup.add(leftEarBtn);
+        
+        setupPanel.add(new JLabel("COM Port:"));
+        setupPanel.add(portSelector);
+        setupPanel.add(connectBtn);
+        setupPanel.add(rightEarBtn);
+        setupPanel.add(leftEarBtn);
+
         // Üst Kontrol Paneli
         JPanel controlPanel = new JPanel(new FlowLayout());
         startBtn = new JButton("Start Test");
@@ -76,11 +100,36 @@ public class VirtualAudiometerApp extends JFrame {
         audiogramPanel = new AudiogramPanel();
         
         // Pencereye (Frame) Ekle
-        add(controlPanel, BorderLayout.NORTH);
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(setupPanel, BorderLayout.NORTH);
+        topPanel.add(controlPanel, BorderLayout.SOUTH);
+
+        add(topPanel, BorderLayout.NORTH);
         add(audiogramPanel, BorderLayout.CENTER);
         add(statusPanel, BorderLayout.SOUTH);
 
         // Buton Dinleyicileri (Action Listeners)
+        connectBtn.addActionListener(e -> {
+            String port = (String) portSelector.getSelectedItem();
+            if (port != null && serialManager.connect(port)) {
+                JOptionPane.showMessageDialog(this, "Connected to " + port);
+                connectBtn.setEnabled(false);
+                portSelector.setEnabled(false);
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to connect!");
+            }
+        });
+        
+        serialManager.setOnMessageReceived(msg -> {
+            if ("RESPONSE".equals(msg.trim()) && currentState != null) {
+                SwingUtilities.invokeLater(() -> {
+                    if (responseBtn.isEnabled()) {
+                        handlePatientResponse();
+                    }
+                });
+            }
+        });
+
         startBtn.addActionListener(e -> startTestSequence());
         responseBtn.addActionListener(e -> handlePatientResponse());
         saveBtn.addActionListener(e -> saveAudiogram());
@@ -128,6 +177,9 @@ public class VirtualAudiometerApp extends JFrame {
         
         // Hasta yanıtı için 3 saniyelik zamanlayıcıyı başlat
         timeoutTimer.restart();
+        
+        // Serial porta komut gönder
+        serialManager.sendCommand(String.format("PLAY,%d,%d", currentState.frequencyHz, currentState.intensityDb));
         
         // Gerçek sesi asenkron (arka planda) olarak 1000ms boyunca çal
         playSoundAsync(currentState.frequencyHz, currentState.intensityDb, 1000);
@@ -194,7 +246,8 @@ public class VirtualAudiometerApp extends JFrame {
             
             if (thresholdResult.isSuccess()) {
                 int threshold = thresholdResult.getValue();
-                audiogramPanel.addThreshold(currentState.frequencyHz, threshold);
+                boolean isRightEar = rightEarBtn.isSelected();
+                audiogramPanel.addThreshold(currentState.frequencyHz, threshold, isRightEar);
                 statusLabel.setText("Threshold found: " + threshold + " dB @ " + currentState.frequencyHz + " Hz");
             } else {
                 statusLabel.setText("No Response at max dB for " + currentState.frequencyHz + " Hz");

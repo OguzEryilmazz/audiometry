@@ -10,7 +10,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class AudiogramPanel extends JPanel {
-    private final Map<Integer, Integer> thresholds = new TreeMap<>(); // esik degerlerini tutar
+    private final Map<Integer, Integer> rightEarThresholds = new TreeMap<>(); // sag kulak esik degerleri
+    private final Map<Integer, Integer> leftEarThresholds = new TreeMap<>(); // sol kulak esik degerleri
     private final int[] freqs = {250, 500, 1000, 2000, 4000, 8000}; // test frekanslari
     
     // Y-ekseni dB seviyesi
@@ -24,13 +25,18 @@ public class AudiogramPanel extends JPanel {
         setBackground(Color.WHITE); 
     }
 
-    public void addThreshold(int frequency, int thresholdDb) {
-        thresholds.put(frequency, thresholdDb); // yeni esik degeri ekle
+    public void addThreshold(int frequency, int thresholdDb, boolean isRightEar) {
+        if (isRightEar) {
+            rightEarThresholds.put(frequency, thresholdDb); // sag kulaga ekle
+        } else {
+            leftEarThresholds.put(frequency, thresholdDb); // sol kulaga ekle
+        }
         repaint(); // ekrani yenile
     }
     
     public void clear() {
-        thresholds.clear(); // tum verileri temizle
+        rightEarThresholds.clear(); // sag verileri temizle
+        leftEarThresholds.clear(); // sol verileri temizle
         repaint(); // ekrani yenile
     }
 
@@ -86,8 +92,13 @@ public class AudiogramPanel extends JPanel {
         yLabelG2.drawString("İşitme Seviyesi (dB)", -height / 2 - 50, 15); // Y-ekseni başlığı
         yLabelG2.dispose();
 
-        // Veri noktalarını çiz (Sağ Kulak için Kırmızı 'O')
-        g2d.setColor(Color.RED); // Sağ kulak rengi
+        // Veri noktalarını çiz
+        drawEarData(g2d, rightEarThresholds, Color.RED, true, padding, drawWidth, drawHeight, dbRange);
+        drawEarData(g2d, leftEarThresholds, Color.BLUE, false, padding, drawWidth, drawHeight, dbRange);
+    }
+
+    private void drawEarData(Graphics2D g2d, Map<Integer, Integer> earThresholds, Color color, boolean isRightEar, int padding, int drawWidth, int drawHeight, int dbRange) {
+        g2d.setColor(color);
         g2d.setStroke(new BasicStroke(2)); // Çizgi kalınlığı
         
         Integer prevX = null;
@@ -95,14 +106,20 @@ public class AudiogramPanel extends JPanel {
         
         for (int i = 0; i < freqs.length; i++) {
             int f = freqs[i];
-            if (thresholds.containsKey(f)) {
-                int threshold = thresholds.get(f);
+            if (earThresholds.containsKey(f)) {
+                int threshold = earThresholds.get(f);
                 int x = padding + i * drawWidth / (freqs.length - 1);
                 int y = padding + (threshold - minDb) * drawHeight / dbRange;
                 
-                // Kırmızı 'O' sembolünü çiz
                 int radius = 5;
-                g2d.drawOval(x - radius, y - radius, radius * 2, radius * 2);
+                if (isRightEar) {
+                    // Kırmızı 'O' sembolünü çiz
+                    g2d.drawOval(x - radius, y - radius, radius * 2, radius * 2);
+                } else {
+                    // Mavi 'X' sembolünü çiz
+                    g2d.drawLine(x - radius, y - radius, x + radius, y + radius);
+                    g2d.drawLine(x - radius, y + radius, x + radius, y - radius);
+                }
                 
                 // Noktaları birleştiren çizgiyi çiz
                 if (prevX != null && prevY != null) {
