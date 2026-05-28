@@ -139,4 +139,15 @@ public class AudiogramPanel extends JPanel {
         g2d.dispose(); // hafizayi temizle
         ImageIO.write(image, "PNG", file); // png olarak kaydet
     }
+
+    public void saveAsCsv(File file) throws IOException {
+        try (java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.FileWriter(file))) {
+            writer.println("Frequency (Hz),Right Ear (dB),Left Ear (dB)");
+            for (int f : freqs) {
+                String right = rightEarThresholds.containsKey(f) ? String.valueOf(rightEarThresholds.get(f)) : "";
+                String left = leftEarThresholds.containsKey(f) ? String.valueOf(leftEarThresholds.get(f)) : "";
+                writer.println(f + "," + right + "," + left);
+            }
+        }
+    }
 }

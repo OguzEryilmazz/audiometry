@@ -32,6 +32,7 @@ public class VirtualAudiometerApp extends JFrame {
     private JButton startBtn;
     private JButton responseBtn;
     private JButton saveBtn;
+    private JButton exportCsvBtn;
 
     private SerialPortManager serialManager = new SerialPortManager();
     
@@ -76,13 +77,16 @@ public class VirtualAudiometerApp extends JFrame {
         startBtn = new JButton("Start Test");
         responseBtn = new JButton("Patient Response (Virtual Button)");
         saveBtn = new JButton("Save Audiogram");
+        exportCsvBtn = new JButton("Export Data as CSV");
         
         responseBtn.setEnabled(false);
         saveBtn.setEnabled(false);
+        exportCsvBtn.setEnabled(false);
         
         controlPanel.add(startBtn);
         controlPanel.add(responseBtn);
         controlPanel.add(saveBtn);
+        controlPanel.add(exportCsvBtn);
 
         // Durum Paneli
         JPanel statusPanel = new JPanel(new GridLayout(1, 3));
@@ -133,6 +137,7 @@ public class VirtualAudiometerApp extends JFrame {
         startBtn.addActionListener(e -> startTestSequence());
         responseBtn.addActionListener(e -> handlePatientResponse());
         saveBtn.addActionListener(e -> saveAudiogram());
+        exportCsvBtn.addActionListener(e -> exportDataAsCsv());
     }
 
     private void initTimer() {
@@ -145,6 +150,7 @@ public class VirtualAudiometerApp extends JFrame {
         audiogramPanel.clear(); // grafiği temizle
         startBtn.setEnabled(false); // başla butonunu kapat
         saveBtn.setEnabled(false); // kaydet butonunu kapat
+        exportCsvBtn.setEnabled(false); // csv butonunu kapat
         startNextFrequency(); // ilk sesi başlat
     }
 
@@ -286,6 +292,7 @@ public class VirtualAudiometerApp extends JFrame {
         startBtn.setEnabled(true); 
         responseBtn.setEnabled(false);
         saveBtn.setEnabled(true);
+        exportCsvBtn.setEnabled(true);
         currentState = null; // durumu sıfırla
     }
     
@@ -305,6 +312,26 @@ public class VirtualAudiometerApp extends JFrame {
                 JOptionPane.showMessageDialog(this, "Audiogram saved successfully!");
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, "Error saving image: " + ex.getMessage());
+            }
+        }
+    }
+
+    private void exportDataAsCsv() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Export Data as CSV");
+        int userSelection = fileChooser.showSaveDialog(this);
+        
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = fileChooser.getSelectedFile();
+            if (!fileToSave.getName().toLowerCase().endsWith(".csv")) {
+                fileToSave = new File(fileToSave.getParentFile(), fileToSave.getName() + ".csv");
+            }
+            
+            try {
+                audiogramPanel.saveAsCsv(fileToSave);
+                JOptionPane.showMessageDialog(this, "Data exported successfully!");
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error exporting data: " + ex.getMessage());
             }
         }
     }
